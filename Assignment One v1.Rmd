@@ -1,0 +1,125 @@
+---
+title: "Assignment 1"
+author: "Greg Strohl"
+date: "10/20/2019"
+output:
+  word_document: 
+  keep_md: yes
+html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(error = TRUE)
+```
+
+
+
+#### Explain your code where appropriate.
+
+Reference: [UCI Machine Learning Repository: Wine Dataset](https://archive.ics.uci.edu/ml/datasets/Wine)
+
+The wine data set consists of chemical measurements on 13 constituents found in each of the three types of wines (cultivars) grown in the same region of Italy.
+
+1. Compute the Alcohol means by `Cultivar`. Briefly discuss the mean differences among the cultivars.
+```{r message=TRUE, warning=TRUE, paged.print=TRUE}
+Cultivar<-as.factor(Wine[,"Cultivar"])
+Alcohol<-Wine[,"Alcohol"]
+# Split `alcohol` by `cultivar` to form a list with each element containing the data for a group.
+# Look at the function `sapply`.
+# Put your R code here.
+AlcbyCult<-cbind(Cultivar,Alcohol)
+sapply(split(Alcohol,Cultivar),mean)
+alcoholList<-split(Alcohol,Cultivar)
+sapply(alcoholList,mean)
+summary(Wine)
+plot(Alcohol~Cultivar)
+```
+
+I combined the alcohol and cultivar into a matrix called $AlcByCult$ using the 'cbind' function.  From there, I used the 'sapply' function to calculate the mean alcohol per cultivar.
+
+The mean alcohol for cultivar 1 was 13.74475. 
+The mean alcohol for cultivar 2 was 12.27873. 
+The mean alcohol for cultivar 3 was 13.15375.
+
+2. Compute the number of observations in each `cultivar`.
+
+```{r}
+library(dplyr)
+dim(Wine)
+arrange(Wine)
+Wine %>%
+  group_by(Cultivar) %>%
+  summarize(n())
+sapply(alcoholList,length)
+```
+Using the wine data set, I used the dplyr function to group and summarize the data by Cultivar.
+There were 59 observations for cultivar 1.
+There were 71 observations for cultivar 2.
+There were 48 observations for cultivar 3.
+
+3.  Create a function to perform a one-way analysis of variance. The input argument `z` should be a list consisting of (possibly) named components, one for each group. The output should be a named list containing components for the between SS ($SS_B$), the within SS ($SS_W$), the between degrees of freedom, and the within degrees of freedom.  
+Note: $SS_B = \sum_i n_i (\bar{y}_i - \bar{y})^2$ and $SS_W = \sum_i (n_i - 1) s_i^2$ where $n_i$ is the sample size of group $i$, $\bar{y}_i$ is the mean of group $i$, and  $s_i^2$ is the variance of group $i$. These group statistics can easily be computed using `sapply`. For the grand mean, $\bar{y}$, think about using `unlist` on `z`. Let $g$ be the number of groups and $n = \sum_i n_i$ be the total sample size, which can also be computed by `unlist`ing `z`. $n$ and $g$ are needed to compute the between and within degrees of freedom.  
+Note: The code should be general for any $g$ and $n_i$.
+
+
+```{r}
+# Look at sapply for summarizing over the elements of a list.
+oneway <- function(z){
+  # Put your R code here.
+  summary(Wine)
+  n <- length(unlist(z,recursive = TRUE))
+  n_i <-sapply(z,length)
+  s_i <- sapply(z,var)
+  g <- length(z)
+  y_bar <-mean(unlist(z,recursive = TRUE))
+  y<- sapply(z,mean)
+  ssb<- n_i*(sapply(z,mean)-y_bar)^2
+  ssw<- sum(n_i-1)*s_i^2
+  return(list(ssb=sum(ssb),ssw=sum(ssw),n=n,g=g))  
+}
+x<-oneway(alcoholList)
+x
+df1 = x[[4]]-1
+df2 = x[[3]]-x[[4]]
+p = pf(x[[2]],df1,df2)
+df1
+df2
+p
+```
+
+4.  Create a function to summarize the output in a one-way ANOVA table, including the F test and $p$-value. The input argument is the output named list in the previous question. The output should be one-way ANOVA table.  
+Note: For computing the $p$-value look at the R function `pf`.
+```{r, message=FALSE, warning=FALSE}
+# For your output, mimic the tabular output of the builtin `summary` function applied to the output of the builtin `aov` function.
+# Look at the function `printCoefmat` to form a table.
+oneway.table <- function(x){
+  # Put your R code here.
+  df1 = x[[4]]-1
+  df2 = x[[3]]-x[[4]]
+  p = pf(x[[1]],df1,df2)
+  ss = sum(x[[1]]^2)
+}
+```
+
+5. Your functions should be illustrated with the `wine` data set. The data consists of 178 samples measuring alcohol (the outcome variable) divided among three (3) cultivars (the input variable).
+
+
+```{r, message=FALSE, warning=FALSE}
+# Split `alcohol` by `cultivar` to call `oneway`.
+# Put your R code here.
+attach(Wine)
+data(Wine)
+str(Wine)
+# Summary of the analysis
+wine.aov <- aov(Cultivar~Alcohol, data = Wine)
+summary(wine.aov)
+model1<- aov(Cultivar ~ Alcohol)
+par(mfrow=c(2,2))
+plot(wine.aov, 2)
+boxplot(Wine$Alcohol ~ Cultivar, 
+        vertical = TRUE, 
+        main="AlcByCult",
+        col = "blue")
+```
+
